@@ -44,4 +44,12 @@ player_info |>
   labs(x = "Max Transfer Value (£M)", y = "Wage (£K)", title = "Do More expensive players get higher wages?") +
   annotate("text", x = 50, y = 400, parse = TRUE, label = label)
 
-           
+#A look at the gap between lower and upper values,
+player_info |> 
+  filter(Lower < 1000000000) |> 
+  ggplot(aes(x = Lower/1000000, y = Upper/1000000)) +
+  geom_point() +
+  stat_smooth(method = "lm") +
+  labs(x = "Lower bound of transfer value (£M)", y = "Upper bound of transfer value (£M)",
+       title = "The gaps are fairly consistent but there seems to be two or three seperate trend")
+
