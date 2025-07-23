@@ -2,6 +2,7 @@ library(cluster)
 library(mclust)
 library(ggrepel)
 library(factoextra)
+library(dbscan)
 
 performance |> 
   filter(Striker | Attacking_Midfield) |> 
@@ -73,34 +74,42 @@ xOutput |>
 
 #Clustering like this doesnt reveal much, patterns are mostly vertical bars, scaling data would work but
 #loses information and difficult to interpret
+
 progression <- performance |> 
   filter(Midfield|Attacking_Midfield|Defensive_Midfield) |> 
   select(Pr.passes.90, xA.90)
 
-#progression$Pr.passes.90 <- scale(progression$Pr.passes.90)
-#progression$xA.90 <- scale(progression$xA.90)
+#scale data
+num_cols <- progression |> 
+  select(Pr.passes.90, xA.90)
+
+num_cols$Pr.passes.90 <- scale(num_cols$Pr.passes.90)
+num_cols$xA.90 <- scale(num_cols$xA.90)
+
+#cluster on scaled data
 set.seed(123)
-progression$cluster1 <- as.factor(kmeans(progression, centers = 5, nstart = 10)$cluster)
-
-
+progression$cluster1 <- as.factor(kmeans(num_cols, centers = 6, nstart = 10)$cluster)
 
 set.seed(123)
-d <- dist(progression, method = "euclidian")
+d <- dist(num_cols, method = "euclidian")
 hc <- hclust(d, method = "average")
-tree <- cutree(hc, k = 5)
+tree <- cutree(hc, k = 6)
 progression$cluster2 <- tree
 
 progression$cluster2 <- as.factor(progression$cluster2)
 
-progression |> 
+#first plot much better
+pr1 <- progression |> 
   ggplot(aes(x = Pr.passes.90, y = xA.90, colour = cluster1)) +
   geom_jitter(alpha = .8) +
   labs(x = "Progressive Passes per 90 mins", y = "Expected Assists per 90 mins", title = "Passing influence of midfielders")
 
-progression |> 
+pr2 <- progression |> 
   ggplot(aes(x = Pr.passes.90, y = xA.90, colour = cluster2)) +
   geom_jitter(alpha = .8) +
   labs(x = "Progressive Passes per 90 mins", y = "Expected Assists per 90 mins", title = "Passing influence of midfielders")
+pr1
+#Focusing on Defensive Midfield Progression -------
 
 DM_progression <- performance |> 
   filter(Defensive_Midfield) |> 
@@ -113,6 +122,7 @@ num_cols <- DM_progression |>
 num_cols$Pr.Percent <- scale(num_cols$Pr.Percent)
 num_cols$Ps.C.90 <- scale(num_cols$Ps.C.90)
 
+set.seed(123)
 DM_progression$cluster1 <- as.factor(kmeans(num_cols, centers = 5, nstart = 10)$cluster)
 
 DM_progression <- DM_progression |> 
@@ -132,37 +142,48 @@ DM_progression$cluster2 <- tree
 
 DM_progression$cluster2 <- as.factor(DM_progression$cluster2)
 
-##library(dbscan)
-
 DM_scan <- dbscan(num_cols, eps = .6, minPts = 3)
 DM_progression$cluster3 <- as.factor(DM_scan$cluster)
 
 m_res <- Mclust(num_cols, G = 5, modelNames = "VVV", verbose = FALSE)
 DM_progression$cluster4 <- as.factor(m_res$classification)
 
+name <- performance |> 
+  filter(Defensive_Midfield) |> 
+  select(Name)
+
+DM_progression$Name <- name$Name
+
+particular <- DM_progression |> 
+  group_by(cluster1) |> 
+  sample_n(size = 2)
+
 p1 <- DM_progression |> 
   ggplot(aes(x = Ps.C.90 , y = Pr.Percent, colour = cluster1_label)) +
   geom_point() +
-  labs(x = "Passes Completed per 90", y = "Percentage of Progressive Passes per 90",
+  labs(x = "Passes Completed per 90", y = "% Progressive",
        title = "How progressive are Top Defensive Midfielders?")  +
-  scale_color_brewer(palette = "Set1")
+  scale_color_brewer(palette = "Set1") +
+  theme(legend.title = element_blank()) +
+  geom_point(data = particular, colour = "black", size = 3) +
+  geom_label_repel(data = particular, aes(label = Name))
 
 p2 <- DM_progression |> 
   ggplot(aes(x = Ps.C.90 , y = Pr.Percent, colour = cluster2)) +
   geom_point() +
-  labs(x = "Passes Completed per 90", y = "Percentage of Progressive Passes per 90",
+  labs(x = "Passes Completed per 90", y = "% Progressive",
        title = "How progressive are Top Defensive Midfielders?")  +
   scale_color_brewer(palette = "Set1")
 p3 <- DM_progression |> 
   ggplot(aes(x = Ps.C.90 , y = Pr.Percent, colour = cluster3)) +
   geom_point() +
-  labs(x = "Passes Completed per 90", y = "Percentage of Progressive Passes per 90",
+  labs(x = "Passes Completed per 90", y = "% Progressive",
        title = "How progressive are Top Defensive Midfielders?")  +
   scale_color_brewer(palette = "Set1")
 p4 <- DM_progression |> 
   ggplot(aes(x = Ps.C.90 , y = Pr.Percent, colour = cluster4)) +
   geom_point() +
-  labs(x = "Passes Completed per 90", y = "Percentage of Progressive Passes per 90",
+  labs(x = "Passes Completed per 90", y = "% Progressive",
        title = "How progressive are Top Defensive Midfielders?")  +
   scale_color_brewer(palette = "Set1")
 
@@ -171,3 +192,17 @@ p1
 #p3
 #p3
 #p1 generally has the best results in allowing to compare groups of players
+
+#For further exploration: say we wanted to find what cluster Casemiro is in
+DM_progression |> 
+  filter(Name == "Casemiro") |> 
+  select(Name, cluster1_label)
+#So lets make a function for this
+
+what_cluster <- function(player_name){
+  return(DM_progression |> 
+           filter(Name == player_name) |> 
+           select(Name, cluster1_label))
+}
+
+what_cluster("Casemiro")
