@@ -56,9 +56,16 @@ players1 |>
 
 #Complete function that allows to filter through and ifnd targets for a position,
 #Limitations: currently only one position and performance metric,
-#             limited number of restrictions / filters
+#             limited number of restrictions / filters,
+#             very difficult to use  metric without knowing the table, some column names are
+#             unreadable without context,
+#             would require knowing how the function works. e.g. knowing what units to use
 
 player_search <- function(min_height, min_age, max_age, min_cost, max_cost, metric, min_percentile, position){
+  
+  min_cost <- min_cost * 1e6
+  max_cost <- max_cost * 1e6
+  
   players <- left_join(performance, player_info, by = c("Name" = "Name", "Club" = "Club", "Age" = "Age"))
   
   players <- players |> 
@@ -76,8 +83,11 @@ player_search <- function(min_height, min_age, max_age, min_cost, max_cost, metr
              percentile >= min_percentile
     ) |> 
     select(Name, Height, Lower, Upper, Age, all_of(metric), percentile, all_of(position)) |> 
-    arrange(desc(percentile), desc(metric))
+    arrange(desc(percentile), desc(metric)) |> 
+    mutate(Min_Cost_M = Lower/1e6, Max_Cost_M = Upper/1e6) |> 
+    select(!c("Lower", "Upper", all_of(position)))
 }
 
-#player_search(0, 20, 30, 10000000, 60000000, "Gls", 70, "Striker")
-#player_search(0, 20, 30, 0, 1000000000, "ShT", 90, "Striker")
+player_search(0, 15, 40, 0, 60,"Gls", 70, "Striker")
+player_search(0, 20, 30, 0, 100, "ShT", 90, "Attacking_Midfield")
+player_search(190, 20, 30, 20, 50, "Int.90", 70, "Centre_Back")
