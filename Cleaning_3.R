@@ -14,3 +14,7 @@ colnames(prem_performance) <- make.names(colnames(prem_performance))
 
 prem_performance$NP.xG.90 <- as.numeric(prem_performance$NP.xG.90)
 prem_performance$xA.90 <- as.numeric(prem_performance$xA.90)
+prem_performance$Pres.A.90 <- as.numeric(prem_performance$Pres.A.90)
+prem_performance$Pres.C.90 <- as.numeric(prem_performance$Pres.C.90)
+prem_performance$Hdrs.A <- as.numeric(prem_performance$Hdrs.A)
+prem_performance$Hdrs.W.90 <- as.numeric(prem_performance$Hdrs.W.90)
